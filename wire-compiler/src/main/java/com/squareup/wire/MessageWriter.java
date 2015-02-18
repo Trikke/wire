@@ -257,6 +257,12 @@ public class MessageWriter {
       emitMessageFieldOptions(writer, messageType);
     }
     emitMessageFieldDefaults(writer, messageType);
+
+	// emit public Long _id for SqlLite
+	writer.emitEmptyLine();
+	writer.emitSingleLineComment( "This _id is used as a default primary key for SQLLite" );
+	writer.emitField("Long", sanitize("_id"), EnumSet.of(PUBLIC));
+
     emitMessageFields(writer, messageType);
     emitMessageFieldsConstructor(writer, messageType);
     emitMessageBuilderConstructor(writer, messageType);
@@ -450,12 +456,17 @@ public class MessageWriter {
       }
 
       if (FieldInfo.isRepeated(field)) javaName = "List<" + javaName + ">";
-      writer.emitField(javaName, sanitize(field.getName()), EnumSet.of(PUBLIC, FINAL));
+
+		String defaultValue = getDefaultValue(messageType, field);
+      writer.emitField(javaName, sanitize(field.getName()), EnumSet.of(PUBLIC), defaultValue);
     }
   }
 
   // Example:
   //
+	// public SimpleMessage()
+	// {}
+	//
   // public SimpleMessage(int optional_int32, long optional_int64) {
   //   this.optional_int32 = optional_int32;
   //   this.optional_int64 = optional_int64;
@@ -469,6 +480,10 @@ public class MessageWriter {
       params.add(javaName);
       params.add(sanitize(field.getName()));
     }
+
+	writer.emitEmptyLine();
+	  writer.beginMethod(null, messageType.getName(), EnumSet.of(PUBLIC), null, null);
+	writer.endMethod();
 
     writer.emitEmptyLine();
     writer.beginMethod(null, messageType.getName(), EnumSet.of(PUBLIC), params, null);
@@ -769,8 +784,7 @@ public class MessageWriter {
         if (compiler.isEnum(fullyQualifiedName)) {
           return javaName + "." + compiler.getEnumDefault(fullyQualifiedName);
         } else {
-          throw new WireCompilerException(
-              "Field " + field + " cannot have default value");
+          return "null";
         }
       }
     }
